@@ -1,0 +1,414 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": []
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "accelerator": "GPU"
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "i3KsphWPVc6b"
+      },
+      "source": [
+        "Import some library code\n",
+        "\n",
+        "\n",
+        "*   `tensorflow` is the machine learning library we're using\n",
+        "*   `os` helps us interact with files and folders\n",
+        "*   `matplotlib` is for displaying charts and images\n",
+        "*   `numpy` helps us work with data to prepare it for `tensorflow` and review it afterwards\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "0m4C75UZUYHZ"
+      },
+      "source": [
+        "import tensorflow as tf\n",
+        "import os\n",
+        "import matplotlib.pyplot as plt\n",
+        "import numpy as np"
+      ],
+      "execution_count": 39,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "3DbrXhkzVWgj"
+      },
+      "source": [
+        "This code gets the data you will use to train your model: pictures of cats and dogs.\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "OMFIwvTjUpeV"
+      },
+      "source": [
+        "import tensorflow_datasets as tfds\n",
+        "(raw_training, raw_validation, raw_testing), metadata = tfds.load(\n",
+        "    'cats_vs_dogs',\n",
+        "    split=['train[:80%]', 'train[80%:90%]', 'train[90%:]'],\n",
+        "    with_info=True,\n",
+        "    as_supervised=True,\n",
+        ")"
+      ],
+      "execution_count": 40,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "rQ2EH08Tx6Ev"
+      },
+      "source": [
+        "\n",
+        "This function takes an image and a label as inputs. The image is then converted into three sets of numbers representing the colours red, green, and blue for every pixel in the image. The combination of these colours can form any other colour. The red, green, and blue values are then converted from numbers between 0 and 255, to numbers between -1 and 1, as the model has been trained to work with values in that range. Finally, the image is resized based on the `IMAGE_SIZE` constant, to match the size the model was previously trained on. In this case, it's a 160 by 160 pixel square.\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "mQ2XEMTtaDPG"
+      },
+      "source": [
+        "IMAGE_SIZE = 160\n",
+        "\n",
+        "training_data = None\n",
+        "\n",
+        "# Resize an image, and convert it into a form that tensorflow can read more easily\n",
+        "def prep_image(image, label):\n",
+        "  image = tf.cast(image, tf.float32)\n",
+        "  image = (image/127.5) - 1\n",
+        "  image = tf.image.resize(image, (IMAGE_SIZE, IMAGE_SIZE))\n",
+        "  return image, label\n",
+        "\n",
+        "training_data = raw_training.map(prep_image)\n",
+        "validation_data = raw_validation.map(prep_image)\n",
+        "testing_data = raw_testing.map(prep_image)"
+      ],
+      "execution_count": 41,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "pFqlVlN6CYNo"
+      },
+      "source": [
+        "These are versions of the functions from the previous project, so you can use them to test your model."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "HwfYVi6GCVtd"
+      },
+      "source": [
+        "def get_image_from_url(image_url):\n",
+        "  # If the temporary test_image.jpg file already exists,\n",
+        "  # delete it so a new one can be made.\n",
+        "  if os.path.exists('/root/.keras/datasets/test_image.jpg'):\n",
+        "    os.remove('/root/.keras/datasets/test_image.jpg')\n",
+        "\n",
+        "  image_path = tf.keras.utils.get_file('test_image.jpg', origin=image_url)\n",
+        "  return image_path\n",
+        "\n",
+        "def print_predictions(predictions):\n",
+        "    for (prediction, number) in zip(predictions[0], range(1, len(predictions[0])+1)):\n",
+        "      print('{}. {} {:.2f}%'.format(number, prediction[1], prediction[2]*100))\n",
+        "\n",
+        "def predict_with_old_model(image_url):\n",
+        "  image_path = get_image_from_url(image_url)\n",
+        "\n",
+        "  image = tf.keras.preprocessing.image.load_img(image_path, target_size=(IMAGE_SIZE, IMAGE_SIZE))\n",
+        "\n",
+        "  plt.figure()\n",
+        "  plt.imshow(image)\n",
+        "\n",
+        "  image = tf.keras.preprocessing.image.img_to_array(image)\n",
+        "  image = np.expand_dims(image, axis=0)\n",
+        "\n",
+        "  prediction_result = original_model.predict(image, batch_size=1)\n",
+        "  predictions = tf.keras.applications.imagenet_utils.decode_predictions(prediction_result, top=15)\n",
+        "\n",
+        "  print_predictions(predictions)\n",
+        "\n",
+        "def predict_image(image_url):\n",
+        "  image_path = get_image_from_url(image_url)\n",
+        "\n",
+        "  image = tf.keras.preprocessing.image.load_img(image_path, target_size=(IMAGE_SIZE, IMAGE_SIZE))\n",
+        "\n",
+        "  plt.figure()\n",
+        "  plt.imshow(image)\n",
+        "\n",
+        "  image = tf.keras.preprocessing.image.img_to_array(image)\n",
+        "  image = np.expand_dims(image, axis=0)\n",
+        "\n",
+        "  prediction_result = model.predict(image, batch_size=1)\n",
+        "  labels = metadata.features['label'].names\n",
+        "  print(labels[prediction_result.argmin()])"
+      ],
+      "execution_count": 42,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "E-wCiqLKvJVF"
+      },
+      "source": [
+        "Import and test the MobileNetV2 model that you will retrain.\n",
+        "\n"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "nXn-yycIZ_Vf"
+      },
+      "source": [
+        "IMAGE_SHAPE = (IMAGE_SIZE,IMAGE_SIZE, 3)\n",
+        "original_model= tf.keras.applications.MobileNetV2(input_shape = IMAGE_SHAPE, include_top = False)\n",
+        "original_model.trainable = False\n",
+        "#predict_with_old_model('https://dojo.soy/predict-dog')\n"
+      ],
+      "execution_count": 43,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "stKhRFDlvKE2"
+      },
+      "source": [
+        "In the cell below, split your images into training, validation, and testing data."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "7zI-5FKrdFSA"
+      },
+      "source": [
+        "BATCH_SIZE = 64\n",
+        "SHUFFLE_BUFFER_SIZE = 10000\n",
+        "training_batches = training_data.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE)\n",
+        "validation_batches = validation_data.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE)\n",
+        "testing_batches = testing_data.shuffle(buffer_size=SHUFFLE_BUFFER_SIZE).batch(BATCH_SIZE)"
+      ],
+      "execution_count": 44,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "AAXeCK0xvKcI"
+      },
+      "source": [
+        "Add the new layers to the model, to allow it to be retrained."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "IEdPUXxbpmHw",
+        "colab": {
+          "base_uri": "https://localhost:8080/",
+          "height": 241
+        },
+        "outputId": "4d3705e5-30d9-40dc-f87a-c7537870828e"
+      },
+      "source": [
+        "global_average_layer = tf.keras.layers.GlobalAveragePooling2D()\n",
+        "prediction_layer = tf.keras.layers.Dense(2)\n",
+        "model = tf.keras.Sequential([\n",
+        "  original_model,\n",
+        "  global_average_layer,\n",
+        "  prediction_layer\n",
+        "])\n",
+        "BASE_LEARNING_RATE = 0.0001\n",
+        "model.compile(optimizer=tf.keras.optimizers.RMSprop(learning_rate=BASE_LEARNING_RATE),\n",
+        "              loss=tf.keras.losses.SparseCategoricalCrossentropy(),\n",
+        "              metrics=['accuracy'])\n",
+        "model.summary()"
+      ],
+      "execution_count": 45,
+      "outputs": [
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1mModel: \"sequential_6\"\u001b[0m\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\">Model: \"sequential_6\"</span>\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓\n",
+              "┃\u001b[1m \u001b[0m\u001b[1mLayer (type)                        \u001b[0m\u001b[1m \u001b[0m┃\u001b[1m \u001b[0m\u001b[1mOutput Shape               \u001b[0m\u001b[1m \u001b[0m┃\u001b[1m \u001b[0m\u001b[1m        Param #\u001b[0m\u001b[1m \u001b[0m┃\n",
+              "┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩\n",
+              "│ mobilenetv2_1.00_160 (\u001b[38;5;33mFunctional\u001b[0m)    │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m5\u001b[0m, \u001b[38;5;34m5\u001b[0m, \u001b[38;5;34m1280\u001b[0m)          │       \u001b[38;5;34m2,257,984\u001b[0m │\n",
+              "├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤\n",
+              "│ global_average_pooling2d_9           │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m1280\u001b[0m)                │               \u001b[38;5;34m0\u001b[0m │\n",
+              "│ (\u001b[38;5;33mGlobalAveragePooling2D\u001b[0m)             │                             │                 │\n",
+              "├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤\n",
+              "│ dense_6 (\u001b[38;5;33mDense\u001b[0m)                      │ (\u001b[38;5;45mNone\u001b[0m, \u001b[38;5;34m2\u001b[0m)                   │           \u001b[38;5;34m2,562\u001b[0m │\n",
+              "└──────────────────────────────────────┴─────────────────────────────┴─────────────────┘\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\">┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓\n",
+              "┃<span style=\"font-weight: bold\"> Layer (type)                         </span>┃<span style=\"font-weight: bold\"> Output Shape                </span>┃<span style=\"font-weight: bold\">         Param # </span>┃\n",
+              "┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩\n",
+              "│ mobilenetv2_1.00_160 (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Functional</span>)    │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">5</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">5</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">1280</span>)          │       <span style=\"color: #00af00; text-decoration-color: #00af00\">2,257,984</span> │\n",
+              "├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤\n",
+              "│ global_average_pooling2d_9           │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">1280</span>)                │               <span style=\"color: #00af00; text-decoration-color: #00af00\">0</span> │\n",
+              "│ (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">GlobalAveragePooling2D</span>)             │                             │                 │\n",
+              "├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤\n",
+              "│ dense_6 (<span style=\"color: #0087ff; text-decoration-color: #0087ff\">Dense</span>)                      │ (<span style=\"color: #00d7ff; text-decoration-color: #00d7ff\">None</span>, <span style=\"color: #00af00; text-decoration-color: #00af00\">2</span>)                   │           <span style=\"color: #00af00; text-decoration-color: #00af00\">2,562</span> │\n",
+              "└──────────────────────────────────────┴─────────────────────────────┴─────────────────┘\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1m Total params: \u001b[0m\u001b[38;5;34m2,260,546\u001b[0m (8.62 MB)\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\"> Total params: </span><span style=\"color: #00af00; text-decoration-color: #00af00\">2,260,546</span> (8.62 MB)\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1m Trainable params: \u001b[0m\u001b[38;5;34m2,562\u001b[0m (10.01 KB)\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\"> Trainable params: </span><span style=\"color: #00af00; text-decoration-color: #00af00\">2,562</span> (10.01 KB)\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        },
+        {
+          "output_type": "display_data",
+          "data": {
+            "text/plain": [
+              "\u001b[1m Non-trainable params: \u001b[0m\u001b[38;5;34m2,257,984\u001b[0m (8.61 MB)\n"
+            ],
+            "text/html": [
+              "<pre style=\"white-space:pre;overflow-x:auto;line-height:normal;font-family:Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace\"><span style=\"font-weight: bold\"> Non-trainable params: </span><span style=\"color: #00af00; text-decoration-color: #00af00\">2,257,984</span> (8.61 MB)\n",
+              "</pre>\n"
+            ]
+          },
+          "metadata": {}
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "tJGfwMeCvK19"
+      },
+      "source": [
+        "Set up your training epochs and train the new layers of the model."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "_yIVNQ0xu3FA",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "35f5cf6e-6a6e-4405-a47a-816c748d58da"
+      },
+      "source": [
+        "TRAINING_EPOCHS = 10\n",
+        "with tf.device('/device:GPU:0'):\n",
+        "  history = model.fit(training_batches,\n",
+        "                      epochs=TRAINING_EPOCHS,\n",
+        "                      validation_data=validation_batches)"
+      ],
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "Epoch 1/10\n",
+            "\u001b[1m291/291\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m56s\u001b[0m 114ms/step - accuracy: 0.3580 - loss: 4.3223 - val_accuracy: 0.5129 - val_loss: 0.6200\n",
+            "Epoch 2/10\n",
+            "\u001b[1m291/291\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m38s\u001b[0m 82ms/step - accuracy: 0.5054 - loss: 0.5850 - val_accuracy: 0.5357 - val_loss: 0.4767\n",
+            "Epoch 3/10\n",
+            "\u001b[1m291/291\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m40s\u001b[0m 82ms/step - accuracy: 0.5202 - loss: 0.4747 - val_accuracy: 0.5649 - val_loss: 0.4588\n",
+            "Epoch 4/10\n",
+            "\u001b[1m291/291\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m41s\u001b[0m 81ms/step - accuracy: 0.5991 - loss: 0.4540 - val_accuracy: 0.9273 - val_loss: 0.4392\n",
+            "Epoch 5/10\n",
+            "\u001b[1m291/291\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m42s\u001b[0m 82ms/step - accuracy: 0.9425 - loss: 0.4537 - val_accuracy: 0.9454 - val_loss: 0.4001\n",
+            "Epoch 6/10\n",
+            "\u001b[1m291/291\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m39s\u001b[0m 90ms/step - accuracy: 0.9562 - loss: 0.3901 - val_accuracy: 0.9523 - val_loss: 0.4250\n",
+            "Epoch 7/10\n",
+            "\u001b[1m291/291\u001b[0m \u001b[32m━━━━━━━━━━━━━━━━━━━━\u001b[0m\u001b[37m\u001b[0m \u001b[1m38s\u001b[0m 83ms/step - accuracy: 0.9569 - loss: 0.3974 - val_accuracy: 0.9527 - val_loss: 0.4338\n",
+            "Epoch 8/10\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "09yMD-z7vLMZ"
+      },
+      "source": [
+        "Use the `predict_image` function to test your model."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "gebsfn75wKRg"
+      },
+      "source": [
+        "url_list = ['https://drive.google.com/uc?export=download&id=1e3HOZz3JVnRr9pUAd2TG8BIj9JwNM_EP',\n",
+        "'https://drive.google.com/uc?export=download&id=1kgeGefxxK1vOzX3jBtSHLixQO1R1YwL1',\n",
+        "'https://drive.google.com/uc?export=download&id=1SAunvm1Zc4CCUQ8kqEpAae6uYuiZHaMb',\n",
+        "'https://drive.google.com/uc?export=download&id=1H0OXGnxGJ7lWbZ6v6ygHTI1WnwXH9h5g',\n",
+        "'https://drive.google.com/uc?export=download&id=1QKthhiKkSdnjMkSl8NgDxrXDevsVrcbz']\n",
+        "\n",
+        "\n",
+        "\n",
+        "for i in url_list:\n",
+        "  predict_image(i)\n"
+      ],
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
